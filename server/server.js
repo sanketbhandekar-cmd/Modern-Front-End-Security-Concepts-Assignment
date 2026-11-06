@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const crypto = require("crypto");
 
 const { user, defaultSettings } = require("./data");
 
@@ -8,11 +9,34 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Middleware: Configure Content Security Policy (CSP) & Clickjacking Protections
+app.use((req, res, next) => {
+    const nonce = crypto.randomBytes(16).toString("base64");
+    res.locals.nonce = nonce;
+
+    res.setHeader(
+        "Content-Security-Policy",
+        `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';`
+    );
+    res.setHeader("X-Frame-Options", "DENY");
+    next();
+});
+
+// Data Transfer Object (DTO) for data minimization across server-browser boundary
+function getUserDTO(userData) {
+    return {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role
+    };
+}
+
 /*
  * Home page
  */
 app.get("/", (req, res) => {
-    const initialUserData = JSON.stringify(user);
+    const initialUserData = JSON.stringify(getUserDTO(user));
 
     res.send(`
         <!DOCTYPE html>
@@ -75,7 +99,7 @@ app.get("/", (req, res) => {
                 </section>
             </main>
 
-            <script>
+            <script nonce="${res.locals.nonce}">
                 window.initialUser = ${initialUserData};
             </script>
 
@@ -89,7 +113,7 @@ app.get("/", (req, res) => {
  * Profile API
  */
 app.get("/api/profile", (req, res) => {
-    res.json(user);
+    res.json(getUserDTO(user));
 });
 
 /*
@@ -99,13 +123,20 @@ app.get("/api/settings", (req, res) => {
     res.json(defaultSettings);
 });
 
+const ALLOWED_SETTINGS = new Set(["theme", "language", "fontSize"]);
+
 app.post("/api/settings", (req, res) => {
-    const incomingSettings = req.body;
+    const incomingSettings = req.body || {};
 
     const settings = {};
 
-    for (const key in incomingSettings) {
-        settings[key] = incomingSettings[key];
+    for (const key of Object.keys(incomingSettings)) {
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+            continue;
+        }
+        if (ALLOWED_SETTINGS.has(key)) {
+            settings[key] = incomingSettings[key];
+        }
     }
 
     res.json({
@@ -185,7 +216,7 @@ app.get("/account", (req, res) => {
                 <p id="status"></p>
             </div>
 
-            <script>
+            <script nonce="${res.locals.nonce}">
                 document
                     .getElementById("delete-account")
                     .addEventListener("click", () => {

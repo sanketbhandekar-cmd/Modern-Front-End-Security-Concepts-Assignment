@@ -1,0 +1,38 @@
+Finding 1: location.hash - Untrusted URL Data
+Code:
+const value = location.hash.substring(1);
+Concern:
+The value is taken directly from the URL hash, which is completely user-controlled. An attacker can send a link with a malicious payload in the hash fragment.
+
+Finding 2: innerHTML - DOM-Based Cross-Site Scripting (DOM XSS)
+Code:
+document.querySelector("#result").innerHTML = value;
+Concern:
+innerHTML is a dangerous sink that executes HTML and scripts. Passing unvalidated input from location.hash into innerHTML leads to DOM XSS. It should use textContent instead.
+
+Finding 3: localStorage.getItem - Untrusted Storage Data
+Code:
+localStorage.getItem("config")
+Concern:
+Data in localStorage is accessible to all client scripts and can be tampered with or modified via XSS. Also, if the stored string is not valid JSON, JSON.parse() will throw an uncaught syntax error and crash the app.
+
+Finding 4: Object.assign - Prototype Pollution
+Code:
+const config = {};
+Object.assign(
+    config,
+    JSON.parse(
+        localStorage.getItem("config")
+    )
+);
+Concern:
+Object.assign blindly copies all properties from the parsed object into config. If the input contains dangerous keys like __proto__ or constructor, it can pollute the object prototype or overwrite critical properties. Supported keys should be validated using an allowlist.
+
+Finding 5: renderClient - Sensitive Data Exposure (Token Leakage)
+Code:
+const user = await getUser();
+renderClient({
+    user
+});
+Concern:
+Passing the full user object directly to the client view can expose sensitive fields like session tokens, refresh tokens, or internal flags. Only necessary public fields should be passed using a DTO (Data Transfer Object).
