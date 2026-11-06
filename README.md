@@ -122,3 +122,26 @@ npm start
     * Result: The browser blocks execution and logs a CSP violation in the DevTools console: *"Refused to execute inline script because it violates the following Content Security Policy directive: 'script-src 'self' 'nonce-...'""*.
 * **Defense-in-depth approach:**
   * CSP acts as a crucial second line of defense; even if an input sanitization or DOM construction flaw is introduced, the browser refuses to execute untrusted scripts or connect to attacker origins.
+
+### 5. Clickjacking
+
+* **Vulnerabilities identified:**
+  * Clickjacking (UI Redress Attack) via Unrestricted Framing
+* **Vulnerable implementation:**
+  * **Location:** `server/server.js` (`GET /account` and sensitive user action routes)
+  * **Source of untrusted data / Security boundary:** Third-party framing boundary (`<iframe>`)
+  * **Why insecure:** The server did not set `X-Frame-Options` or CSP `frame-ancestors` headers on sensitive endpoints like `/account`. Malicious websites could embed the account management interface inside a transparent or deceptive `<iframe>`, tricking authenticated users into clicking sensitive controls like the "Delete Account" button.
+* **Security fixes:**
+  * Added `frame-ancestors 'none';` to the `Content-Security-Policy` HTTP response header.
+  * Added `X-Frame-Options: DENY` HTTP response header for defense in depth and backwards compatibility with legacy browsers.
+  * Disallowed framing globally across all application endpoints.
+* **Testing and verification:**
+  * **Positive scenario:**
+    * Input: Navigating directly to `http://localhost:3000/account` in a top-level browser window.
+    * Result: The page renders normally, displays user account settings, and functions properly.
+  * **Negative scenario:**
+    * Input: Opening `test/iframe-test.html` (which attempts to embed `http://localhost:3000/account` inside an `<iframe>`).
+    * Result: The browser blocks the iframe from loading (displays "localhost refused to connect"), and the console displays an error: *"Refused to display 'http://localhost:3000/account' in a frame because it set 'X-Frame-Options' to 'deny'"*.
+* **Defense-in-depth approach:**
+  * Modern `Content-Security-Policy: frame-ancestors 'none'` is paired with traditional `X-Frame-Options: DENY` for multi-layer protection across all browsers.
+  * Combined with session authentication and cookie protections (`SameSite`) to prevent unauthorized cross-origin requests.

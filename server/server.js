@@ -9,15 +9,16 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Middleware: Configure Content Security Policy (CSP)
+// Middleware: Configure Content Security Policy (CSP) & Clickjacking Protections
 app.use((req, res, next) => {
     const nonce = crypto.randomBytes(16).toString("base64");
     res.locals.nonce = nonce;
 
     res.setHeader(
         "Content-Security-Policy",
-        `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';`
+        `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';`
     );
+    res.setHeader("X-Frame-Options", "DENY");
     next();
 });
 
