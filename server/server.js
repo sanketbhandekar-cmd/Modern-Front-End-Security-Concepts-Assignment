@@ -8,11 +8,21 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Data Transfer Object (DTO) for data minimization across server-browser boundary
+function getUserDTO(userData) {
+    return {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role
+    };
+}
+
 /*
  * Home page
  */
 app.get("/", (req, res) => {
-    const initialUserData = JSON.stringify(user);
+    const initialUserData = JSON.stringify(getUserDTO(user));
 
     res.send(`
         <!DOCTYPE html>
@@ -89,7 +99,7 @@ app.get("/", (req, res) => {
  * Profile API
  */
 app.get("/api/profile", (req, res) => {
-    res.json(user);
+    res.json(getUserDTO(user));
 });
 
 /*

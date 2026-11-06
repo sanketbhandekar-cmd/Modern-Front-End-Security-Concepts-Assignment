@@ -75,3 +75,26 @@ npm start
   * Client-side validation in `prepareSettings` sanitizes data before sending.
   * Server-side validation in `POST /api/settings` ensures untrusted requests from any client cannot pollute objects.
   * Strict allowlisting rejects all unexpected properties instead of relying only on blocklists.
+
+### 3. SSR Token Leakage
+
+* **Vulnerabilities identified:**
+  * SSR Token Leakage & Excessive Data Exposure
+* **Vulnerable implementation:**
+  * **Location:** `server/server.js` (`GET /` and `GET /api/profile`)
+  * **Source of untrusted data / Security boundary:** Server-to-client serialization boundary
+  * **Why insecure:** The server directly serialized the entire `user` object—including secret authentication tokens (`sessionToken` and `refreshToken`)—into the initial HTML payload (`window.initialUser = ...`) and API response. This violates the principle of data minimization and exposes sensitive credentials to client-side scripts, browser extensions, and potential XSS exploits.
+* **Security fixes:**
+  * Implemented a Data Transfer Object (DTO) pattern via `getUserDTO(userData)` on the server.
+  * Only safe user attributes required for UI display (`id`, `name`, `email`, `role`) are serialized across the server-to-browser boundary.
+  * Sensitive tokens (`sessionToken`, `refreshToken`) remain strictly on the server and are never sent to the browser.
+* **Testing and verification:**
+  * **Positive scenario:**
+    * Input: Navigating to `http://localhost:3000/`.
+    * Result: The dashboard renders all user details correctly (Name: "John Doe", Email: "john@example.com", Role: "Administrator").
+  * **Negative scenario:**
+    * Input: Inspecting `window.initialUser` in DevTools Console or checking response of `GET /api/profile`.
+    * Result: `window.initialUser.sessionToken` and `window.initialUser.refreshToken` are both `undefined`. Sensitive tokens are completely hidden from the browser.
+* **Defense-in-depth approach:**
+  * Data Minimization / DTO ensures only required non-sensitive fields leave the server.
+  * Where authentication tokens are needed by the browser, they should be stored in secure, `HttpOnly`, `SameSite` cookies rather than readable JavaScript properties.
