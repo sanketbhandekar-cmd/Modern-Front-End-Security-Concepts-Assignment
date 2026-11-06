@@ -99,13 +99,20 @@ app.get("/api/settings", (req, res) => {
     res.json(defaultSettings);
 });
 
+const ALLOWED_SETTINGS = new Set(["theme", "language", "fontSize"]);
+
 app.post("/api/settings", (req, res) => {
-    const incomingSettings = req.body;
+    const incomingSettings = req.body || {};
 
     const settings = {};
 
-    for (const key in incomingSettings) {
-        settings[key] = incomingSettings[key];
+    for (const key of Object.keys(incomingSettings)) {
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+            continue;
+        }
+        if (ALLOWED_SETTINGS.has(key)) {
+            settings[key] = incomingSettings[key];
+        }
     }
 
     res.json({

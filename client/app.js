@@ -27,11 +27,20 @@ profileCard.appendChild(roleParagraph);
 app.textContent = "";
 app.appendChild(profileCard);
 
+const ALLOWED_SETTINGS = new Set(["theme", "language", "fontSize"]);
+
 function prepareSettings(userSettings) {
     const settings = {};
 
     for (const key in userSettings) {
-        settings[key] = userSettings[key];
+        if (Object.prototype.hasOwnProperty.call(userSettings, key)) {
+            if (key === "__proto__" || key === "constructor" || key === "prototype") {
+                continue;
+            }
+            if (ALLOWED_SETTINGS.has(key)) {
+                settings[key] = userSettings[key];
+            }
+        }
     }
 
     return settings;
