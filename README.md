@@ -98,3 +98,27 @@ npm start
 * **Defense-in-depth approach:**
   * Data Minimization / DTO ensures only required non-sensitive fields leave the server.
   * Where authentication tokens are needed by the browser, they should be stored in secure, `HttpOnly`, `SameSite` cookies rather than readable JavaScript properties.
+
+### 4. Content Security Policy (CSP)
+
+* **Vulnerabilities identified:**
+  * Missing Content Security Policy (CSP) Header
+* **Vulnerable implementation:**
+  * **Location:** `server/server.js` (HTTP response handling)
+  * **Source of untrusted data / Security boundary:** Browser execution environment & resource loading
+  * **Why insecure:** The server sent no `Content-Security-Policy` header. Without a restrictive CSP, the browser has no security policy to restrict the origin of scripts, styles, objects, or network connections. If any injection vulnerability exists, the browser executes unauthorized scripts without restriction.
+* **Security fixes:**
+  * Configured a robust HTTP response header for `Content-Security-Policy` using Express middleware:
+    `default-src 'self'; script-src 'self' 'nonce-<random>'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';`
+  * Implemented per-request cryptographic nonces (`crypto.randomBytes(16).toString("base64")`) attached to legitimate inline scripts (`<script nonce="...">`).
+  * Disabled Flash/plugins via `object-src 'none'` and restricted document base URIs via `base-uri 'self'`.
+* **Testing and verification:**
+  * **Positive scenario:**
+    * Input: Navigating to `http://localhost:3000/` and `http://localhost:3000/account`.
+    * Result: Legitimate scripts (`app.js`, inline bootstrap scripts with nonce) and styles load and execute without any console errors.
+  * **Negative scenario:**
+    * Input: Injecting an unauthorized external or non-nonced inline script in DevTools:
+      `const s = document.createElement('script'); s.textContent = "alert('CSP Blocked')"; document.body.appendChild(s);`
+    * Result: The browser blocks execution and logs a CSP violation in the DevTools console: *"Refused to execute inline script because it violates the following Content Security Policy directive: 'script-src 'self' 'nonce-...'""*.
+* **Defense-in-depth approach:**
+  * CSP acts as a crucial second line of defense; even if an input sanitization or DOM construction flaw is introduced, the browser refuses to execute untrusted scripts or connect to attacker origins.

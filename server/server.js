@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const crypto = require("crypto");
 
 const { user, defaultSettings } = require("./data");
 
@@ -7,6 +8,18 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Middleware: Configure Content Security Policy (CSP)
+app.use((req, res, next) => {
+    const nonce = crypto.randomBytes(16).toString("base64");
+    res.locals.nonce = nonce;
+
+    res.setHeader(
+        "Content-Security-Policy",
+        `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';`
+    );
+    next();
+});
 
 // Data Transfer Object (DTO) for data minimization across server-browser boundary
 function getUserDTO(userData) {
@@ -85,7 +98,7 @@ app.get("/", (req, res) => {
                 </section>
             </main>
 
-            <script>
+            <script nonce="${res.locals.nonce}">
                 window.initialUser = ${initialUserData};
             </script>
 
@@ -202,7 +215,7 @@ app.get("/account", (req, res) => {
                 <p id="status"></p>
             </div>
 
-            <script>
+            <script nonce="${res.locals.nonce}">
                 document
                     .getElementById("delete-account")
                     .addEventListener("click", () => {
